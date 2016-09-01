@@ -475,13 +475,18 @@ void BKE_blendfile_write_partial_begin(Main *bmain_src)
 	BKE_main_id_tag_all(bmain_src, LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT, false);
 }
 
-void BKE_blendfile_write_partial_tag_ID(ID *id, bool set)
+void BKE_blendfile_write_partial_tag_ID(ID *id, bool set, bool expand)
 {
+	int tag = LIB_TAG_DOIT;
+	if (expand) {
+		tag |= LIB_TAG_NEED_EXPAND;
+	}
+
 	if (set) {
-		id->tag |= LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT;
+		id->tag |= tag;
 	}
 	else {
-		id->tag &= ~(LIB_TAG_NEED_EXPAND | LIB_TAG_DOIT);
+		id->tag &= ~tag;
 	}
 }
 

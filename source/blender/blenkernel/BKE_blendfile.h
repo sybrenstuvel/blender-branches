@@ -54,7 +54,7 @@ int BKE_blendfile_write_userdef(const char *filepath, struct ReportList *reports
 
 
 /* partial blend file writing */
-void BKE_blendfile_write_partial_tag_ID(struct ID *id, bool set);
+void BKE_blendfile_write_partial_tag_ID(struct ID *id, bool set, bool expand);
 void BKE_blendfile_write_partial_begin(struct Main *bmain_src);
 bool BKE_blendfile_write_partial(
         struct Main *bmain_src, const char *filepath, const int write_flags, struct ReportList *reports);

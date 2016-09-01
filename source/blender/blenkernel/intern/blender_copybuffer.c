@@ -68,7 +68,7 @@ void BKE_copybuffer_begin(Main *bmain_src)
 
 void BKE_copybuffer_tag_ID(ID *id)
 {
-	BKE_blendfile_write_partial_tag_ID(id, true);
+	BKE_blendfile_write_partial_tag_ID(id, true, true);
 }
 
 /**

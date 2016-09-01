@@ -50,7 +50,7 @@
 
 
 PyDoc_STRVAR(bpy_lib_write_doc,
-".. method:: write(filepath, datablocks, relative_remap=False, fake_user=False, compress=False)\n"
+".. method:: write(filepath, datablocks, relative_remap=False, fake_user=False, compress=False, include_dependencies=True)\n"
 "\n"
 "   Write data-blocks into a blend file.\n"
 "\n"
@@ -68,13 +68,18 @@ PyDoc_STRVAR(bpy_lib_write_doc,
 "   :type fake_user: bool\n"
 "   :arg compress: When True, write a compressed blend file.\n"
 "   :type compress: bool\n"
+"   :arg include_dependencies: When False, only writes the given datablocks. When True,\n"
+"                              (the default) also write dependencies of the given datablocks.\n"
+"                              For example, when saving a mesh object, this would also save\n"
+"                              the mesh itself, its materials, etc.\n"
+"   :type include_dependencies: bool\n"
 );
 static PyObject *bpy_lib_write(PyObject *UNUSED(self), PyObject *args, PyObject *kwds)
 {
 	static const char *kwlist[] = {
 		"filepath", "datablocks",
 		/* optional */
-		"relative_remap", "fake_user", "compress",
+		"relative_remap", "fake_user", "compress", "include_dependencies",
 		NULL,
 	};
 
@@ -83,15 +88,17 @@ static PyObject *bpy_lib_write(PyObject *UNUSED(self), PyObject *args, PyObject 
 	char filepath_abs[FILE_MAX];
 	PyObject *datablocks = NULL;
 	bool use_relative_remap = false, use_fake_user = false, use_compress = false;
+	bool include_dependencies = false;
 
 	if (!PyArg_ParseTupleAndKeywords(
 	        args, kwds,
-	        "sO!|$O&O&O&:write", (char **)kwlist,
+	        "sO!|$O&O&O&O&:write", (char **)kwlist,
 	        &filepath,
 	        &PySet_Type, &datablocks,
 	        PyC_ParseBool, &use_relative_remap,
 	        PyC_ParseBool, &use_fake_user,
-	        PyC_ParseBool, &use_compress))
+	        PyC_ParseBool, &use_compress,
+	        PyC_ParseBool, &include_dependencies))
 	{
 		return NULL;
 	}
@@ -150,7 +157,7 @@ static PyObject *bpy_lib_write(PyObject *UNUSED(self), PyObject *args, PyObject 
 				}
 				id_store->id->us = 1;
 
-				BKE_blendfile_write_partial_tag_ID(id_store->id, true);
+				BKE_blendfile_write_partial_tag_ID(id_store->id, true, include_dependencies);
 
 				id_store_len += 1;
 				id_store++;
@@ -199,7 +206,7 @@ finally:
 
 		id_store->id->us = id_store->id_us;
 
-		BKE_blendfile_write_partial_tag_ID(id_store->id, false);
+		BKE_blendfile_write_partial_tag_ID(id_store->id, false, true);
 	}
 
 	MEM_freeN(id_store_array);
