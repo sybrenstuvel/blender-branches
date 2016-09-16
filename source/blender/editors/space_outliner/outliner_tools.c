@@ -472,6 +472,31 @@ static void id_select_linked_cb(
 	ED_object_select_linked_by_id(C, id);
 }
 
+static void id_open_in_new_blender_cb(
+        bContext *C, ReportList *reports, Scene *UNUSED(scene), TreeElement *UNUSED(te),
+        TreeStoreElem *UNUSED(tsep), TreeStoreElem *tselem, void *UNUSED(user_data))
+{
+	ID *id = tselem->id;
+	wmOperatorType *ot;
+	PointerRNA ptr;
+
+	if (id->lib == NULL) {
+		/* Not linked, so nothing to do. */
+		return;
+	}
+
+	ot = WM_operatortype_find("WM_OT_open_library_in_subprocess", false);
+	if (ot == NULL) {
+		BKE_reportf(reports, RPT_ERROR, "Operator 'WM_OT_open_library_in_subprocess' not found.");
+		return;
+	}
+
+	WM_operator_properties_create_ptr(&ptr, ot);
+	RNA_string_set(&ptr, "libname", id->lib->id.name + 2);
+	WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr);
+	WM_operator_properties_free(&ptr);
+}
+
 static void singleuser_action_cb(
         bContext *C, ReportList *UNUSED(reports), Scene *UNUSED(scene), TreeElement *UNUSED(te),
         TreeStoreElem *tsep, TreeStoreElem *tselem, void *UNUSED(user_data))
@@ -631,6 +656,7 @@ typedef enum eOutliner_PropDataOps {
 	OL_DOP_HIDE,
 	OL_DOP_UNHIDE,
 	OL_DOP_SELECT_LINKED,
+	OL_DOP_OPEN_IN_NEW_BLENDER,
 } eOutliner_PropDataOps;
 
 typedef enum eOutliner_PropConstraintOps {
@@ -891,6 +917,7 @@ enum {
 	OL_OP_TOGSEL,
 	OL_OP_TOGREN,
 	OL_OP_RENAME,
+	OL_OP_OPEN_IN_NEW_BLENDER,
 };
 
 static EnumPropertyItem prop_object_op_types[] = {
@@ -905,6 +932,8 @@ static EnumPropertyItem prop_object_op_types[] = {
 	{OL_OP_TOGSEL, "TOGSEL", 0, "Toggle Selectable", ""},
 	{OL_OP_TOGREN, "TOGREN", 0, "Toggle Renderable", ""},
 	{OL_OP_RENAME, "RENAME", 0, "Rename", ""},
+	{OL_OP_OPEN_IN_NEW_BLENDER, "OPEN_IN_NEW_BLENDER", 0, "Open in new Blender",
+	 "Opens another Blender with the library containing this datablock"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -997,12 +1026,17 @@ static int outliner_object_operation_exec(bContext *C, wmOperator *op)
 		outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, item_rename_cb);
 		str = "Rename Object";
 	}
+	else if (event == OL_OP_OPEN_IN_NEW_BLENDER) {
+		outliner_do_object_operation(C, op->reports, scene, soops, &soops->tree, id_open_in_new_blender_cb);
+	}
 	else {
 		BLI_assert(0);
 		return OPERATOR_CANCELLED;
 	}
 
-	ED_undo_push(C, str);
+	if (str != NULL) {
+		ED_undo_push(C, str);
+	}
 	
 	return OPERATOR_FINISHED;
 }
@@ -1038,6 +1072,7 @@ typedef enum eOutliner_PropGroupOps {
 	OL_GROUPOP_TOGSEL,
 	OL_GROUPOP_TOGREN,
 	OL_GROUPOP_RENAME,
+	OL_GROUPOP_OPEN_IN_NEW_BLENDER,
 } eOutliner_PropGroupOps;
 
 static EnumPropertyItem prop_group_op_types[] = {
@@ -1052,6 +1087,7 @@ static EnumPropertyItem prop_group_op_types[] = {
 	{OL_GROUPOP_TOGSEL, "TOGSEL",     0, "Toggle Selectable", ""},
 	{OL_GROUPOP_TOGREN, "TOGREN",     0, "Toggle Renderable", ""},
 	{OL_GROUPOP_RENAME, "RENAME",     0, "Rename", ""},
+	{OL_GROUPOP_OPEN_IN_NEW_BLENDER, "OPEN_IN_NEW_BLENDER", 0, "Open in new Blender", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -1100,6 +1136,9 @@ static int outliner_group_operation_exec(bContext *C, wmOperator *op)
 		case OL_GROUPOP_RENAME:
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, item_rename_cb, NULL);
 			break;
+		case OL_GROUPOP_OPEN_IN_NEW_BLENDER:
+			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_open_in_new_blender_cb, NULL);
+			break;
 		default:
 			BLI_assert(0);
 	}
@@ -1143,7 +1182,8 @@ typedef enum eOutlinerIdOpTypes {
 	OUTLINER_IDOP_FAKE_CLEAR,
 	OUTLINER_IDOP_RENAME,
 
-	OUTLINER_IDOP_SELECT_LINKED
+	OUTLINER_IDOP_SELECT_LINKED,
+	OUTLINER_IDOP_OPEN_IN_BLENDER,
 } eOutlinerIdOpTypes;
 
 // TODO: implement support for changing the ID-block used
@@ -1159,6 +1199,8 @@ static EnumPropertyItem prop_id_op_types[] = {
 	{OUTLINER_IDOP_FAKE_CLEAR, "CLEAR_FAKE", 0, "Clear Fake User", ""},
 	{OUTLINER_IDOP_RENAME, "RENAME", 0, "Rename", ""},
 	{OUTLINER_IDOP_SELECT_LINKED, "SELECT_LINKED", 0, "Select Linked", ""},
+	{OUTLINER_IDOP_OPEN_IN_BLENDER, "OPEN_IN_BLENDER", 0, "Open in new Blender",
+	 "Opens another Blender with the library containing this datablock"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -1288,7 +1330,10 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
 			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_select_linked_cb, NULL);
 			ED_undo_push(C, "Select");
 			break;
-			
+		case OUTLINER_IDOP_OPEN_IN_BLENDER:
+			outliner_do_libdata_operation(C, op->reports, scene, soops, &soops->tree, id_open_in_new_blender_cb, NULL);
+			/* no data changed, so no undo necessary. */
+			break;
 		default:
 			// invalid - unhandled
 			break;
@@ -1754,7 +1799,7 @@ static int outliner_data_operation_exec(bContext *C, wmOperator *op)
 	
 	event = RNA_enum_get(op->ptr, "type");
 	set_operation_types(soops, &soops->tree, &scenelevel, &objectlevel, &idlevel, &datalevel);
-	
+
 	switch (datalevel) {
 		case TSE_POSE_CHANNEL:
 		{

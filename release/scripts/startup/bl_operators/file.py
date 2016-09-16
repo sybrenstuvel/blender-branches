@@ -248,3 +248,54 @@ class WM_OT_previews_batch_clear(Operator):
 
         return {'FINISHED'}
 
+
+class WM_OT_open_library_in_subprocess(Operator):
+    """Starts a new Blender to open a library"""
+    bl_idname = "wm.open_library_in_subprocess"
+    bl_label = "Open in new Blender"
+    bl_options = {'REGISTER'}
+
+    # Library name, so we can reload it after the subprocess ends.
+    libname = StringProperty(
+            maxlen=1024,
+            options={'HIDDEN', 'SKIP_SAVE'}
+            )
+
+    def execute(self, context):
+        print('NO CALLING EXECUTE')
+        return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        import subprocess
+
+        self.lib = bpy.data.libraries[self.libname]
+        blen_path = bpy.path.abspath(self.lib.filepath)
+
+        cmd = [
+            bpy.app.binary_path,
+            blen_path,
+        ]
+
+        self.sub_blender = subprocess.Popen(cmd)
+        context.window_manager.modal_handler_add(self)
+        self._timer = context.window_manager.event_timer_add(0.2, context.window)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if event.type != 'TIMER':
+            return {'PASS_THROUGH'}
+
+        self.sub_blender.poll()
+        if self.sub_blender.returncode is None:
+            return {'RUNNING_MODAL'}
+
+        if self.sub_blender.returncode == 0:
+            self.report({'INFO'}, 'Sub-Blender stopped successfully, reloading library.')
+        else:
+            self.report({'WARNING'}, 'Sub-Blender stopped with status %i, reloading library.',
+                        self.sub_blender.returncode)
+
+        context.window_manager.event_timer_remove(self._timer)
+        self.lib.reload()
+
+        return {'FINISHED'}
