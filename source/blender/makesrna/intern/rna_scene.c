@@ -5354,7 +5354,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 		{FFM_PRESET_VERYFAST, "VERYFAST", 0, "Very fast", ""},
 		{FFM_PRESET_FASTER, "FASTER", 0, "Faster", ""},
 		{FFM_PRESET_FAST, "FAST", 0, "Fast", ""},
-		{FFM_PRESET_MEDIUM, "MEDIUM", 0, "Medium speed; default", ""},
+		{FFM_PRESET_MEDIUM, "MEDIUM", 0, "Medium speed", ""},
 		{FFM_PRESET_SLOW, "SLOW", 0, "Slow", ""},
 		{FFM_PRESET_SLOWER, "SLOWER", 0, "Slower", ""},
 		{FFM_PRESET_VERYSLOW, "VERYSLOW", 0, "Very slow; smallest file", ""},
@@ -5367,7 +5367,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 		{FFM_CRF_LOSSLESS, "LOSSLESS", 0, "Lossless", ""},
 		{FFM_CRF_PERC_LOSSLESS, "PERC_LOSSLESS", 0, "Perceptually lossless", ""},
 		{FFM_CRF_HIGH, "HIGH", 0, "High quality", ""},
-		{FFM_CRF_MEDIUM, "MEDIUM", 0, "Medium quality; default", ""},
+		{FFM_CRF_MEDIUM, "MEDIUM", 0, "Medium quality", ""},
 		{FFM_CRF_LOW, "LOW", 0, "Low quality", ""},
 		{FFM_CRF_VERYLOW, "VERYLOW", 0, "Very low quality", ""},
 		{FFM_CRF_LOWEST, "LOWEST", 0, "Lowest quality", ""},
@@ -5486,7 +5486,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, ffmpeg_crf_items);
 	RNA_def_property_enum_default(prop, FFM_CRF_MEDIUM);
 	RNA_def_property_ui_text(prop, "Output quality",
-	                         "Constant Rate Factor; tradeoff between video quality and file size");
+	                         "Constant Rate Factor (CRF); tradeoff between video quality and file size");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
 	prop = RNA_def_property(srna, "ffmpeg_preset", PROP_ENUM, PROP_NONE);
