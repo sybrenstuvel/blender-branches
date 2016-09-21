@@ -1391,5 +1391,17 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				clip->tracking.stabilization.ok = false;
 			}
 		}
+		if (!DNA_struct_elem_find(fd->filesdna, "FFMpegCodecData", "int", "ffmpeg_preset")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				/* "medium" is the preset FFmpeg uses when no presets are given. */
+				scene->r.ffcodecdata.ffmpeg_preset = FFM_PRESET_MEDIUM;
+			}
+		}
+		if (!DNA_struct_elem_find(fd->filesdna, "FFMpegCodecData", "int", "ffmpeg_preset")) {
+			for (Scene *scene = main->scene.first; scene; scene = scene->id.next) {
+				/* fall back to behaviour before we introduced CRF for old files */
+				scene->r.ffcodecdata.constant_rate_factor = FFM_CRF_NONE;
+			}
+		}
 	}
 }
