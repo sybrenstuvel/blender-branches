@@ -5405,6 +5405,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "type");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_enum_items(prop, ffmpeg_format_items);
+	RNA_def_property_enum_default(prop, FFMPEG_MKV);
 	RNA_def_property_ui_text(prop, "Container", "Output file container");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_settings_update");
 
@@ -5412,6 +5413,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "codec");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_enum_items(prop, ffmpeg_codec_items);
+	RNA_def_property_enum_default(prop, AV_CODEC_ID_H264);
 	RNA_def_property_ui_text(prop, "Codec", "FFmpeg codec to use");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_FFmpegSettings_codec_settings_update");
 
@@ -5444,6 +5446,7 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "gop_size");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 0, 500);
+	RNA_def_property_int_default(prop, 25);
 	RNA_def_property_ui_text(prop, "Keyframe interval",
 	                         "Distance between key frames, also known as GOP size; "
 	                         "influences file size and seekability");

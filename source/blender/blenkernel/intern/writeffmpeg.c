@@ -1655,9 +1655,10 @@ void BKE_ffmpeg_image_type_verify(RenderData *rd, ImageFormatData *imf)
 		    rd->ffcodecdata.audio_codec <= 0 ||
 		    rd->ffcodecdata.video_bitrate <= 1)
 		{
-			rd->ffcodecdata.codec = AV_CODEC_ID_MPEG2VIDEO;
-
-			BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_DVD);
+			BKE_ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
+			rd->ffcodecdata.constant_rate_factor = FFM_CRF_MEDIUM;
+			rd->ffcodecdata.ffmpeg_preset = FFM_PRESET_MEDIUM;
+			rd->ffcodecdata.type = FFMPEG_MKV;
 		}
 		if (rd->ffcodecdata.type == FFMPEG_OGG) {
 			rd->ffcodecdata.type = FFMPEG_MPEG2;

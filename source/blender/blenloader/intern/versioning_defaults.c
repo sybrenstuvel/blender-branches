@@ -155,7 +155,6 @@ void BLO_update_defaults_startup_blend(Main *bmain)
 		scene->gm.scehysteresis = 10;
 
 		scene->r.ffcodecdata.audio_mixrate = 48000;
-		scene->r.ffcodecdata.constant_rate_factor = FFM_CRF_MEDIUM;
 	}
 
 	for (FreestyleLineStyle *linestyle = bmain->linestyle.first; linestyle; linestyle = linestyle->id.next) {
