@@ -28,6 +28,7 @@ StructMetaPropGroup = bpy_types.bpy_struct_meta_idprop
 bpy_types.BlendDataLibraries.load = _bpy._library_load
 bpy_types.BlendDataLibraries.write = _bpy._library_write
 bpy_types.BlendData.user_map = _bpy._rna_id_collection_user_map
+bpy_types.BlendData.make_local = _bpy._rna_id_collection_make_local
 
 
 class Context(StructRNA):

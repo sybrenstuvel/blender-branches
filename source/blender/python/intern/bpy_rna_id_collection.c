@@ -38,6 +38,7 @@
 #include "BKE_main.h"
 #include "BKE_library.h"
 #include "BKE_library_query.h"
+#include "BKE_object.h"
 
 #include "DNA_ID.h"
 /* Those folowing are only to support hack of not listing some internal 'backward' pointers in generated user_map... */
@@ -291,12 +292,61 @@ error:
 
 }
 
+PyDoc_STRVAR(bpy_make_local_doc,
+".. method:: make_local(idblock, clear_proxy=True)\n"
+"\n"
+"   Makes the given ID datablock local.\n"
+"\n"
+"   Note that this will not work reliably when the idblock is referenced from a library.\n"
+"   It is the caller's responsibility to ensure a proper state. Use with care.\n"
+"\n"
+"   :arg idblock: The data-blocks that will be made local.\n"
+"   :type idblock: bpy.types.ID\n"
+"   :arg clear_proxy: Whether to clear proxies (default) or not. Can cause proxies to be\n"
+"                     duplicated when still referred to from another library.\n"
+"   :type clear_proxy: bool\n"
+);
+static PyObject *bpy_make_local(PyObject *UNUSED(self), PyObject *args, PyObject *kwds)
+{
+	Main *bmain = G.main;  /* XXX see note in bpy_user_map() about this being ugly. */
+	ID *id;
+	static const char *kwlist[] = {"idblock", "clear_proxy", NULL};
+	PyObject *py_id;
+	bool clear_proxy=true;
+
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwds, "O|$p:make_local", (char **)kwlist,
+	        &py_id, &clear_proxy))
+	{
+		return NULL;
+	}
+
+	if (!pyrna_id_FromPyObject(py_id, &id)) {
+		PyErr_SetString(PyExc_ValueError, "idblock parameter is not actually an ID datablock");
+		return NULL;
+	}
+
+	/* Special case, as we can't rely on id_make_local(); it clears proxies. */
+	if (!clear_proxy && GS(id->name) == ID_OB) {
+		BKE_object_make_local_ex(bmain, (Object *)id, false, clear_proxy);
+	}
+	else {
+		id_make_local(bmain, id, false, false);
+	}
+
+	Py_RETURN_NONE;
+}
+
+
 int BPY_rna_id_collection_module(PyObject *mod_par)
 {
 	static PyMethodDef user_map = {
 	    "user_map", (PyCFunction)bpy_user_map, METH_VARARGS | METH_KEYWORDS, bpy_user_map_doc};
+	static PyMethodDef make_local_map = {
+	    "make_local", (PyCFunction)bpy_make_local, METH_VARARGS | METH_KEYWORDS, bpy_make_local_doc};
 
 	PyModule_AddObject(mod_par, "_rna_id_collection_user_map", PyCFunction_New(&user_map, NULL));
+	PyModule_AddObject(mod_par, "_rna_id_collection_make_local", PyCFunction_New(&make_local_map, NULL));
 
 	return 0;
 }
