@@ -1882,6 +1882,13 @@ static void rna_FileBrowser_FSMenuRecent_active_range(PointerRNA *ptr, int *min,
 	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_RECENT);
 }
 
+/* Space Info */
+static void rna_SpaceInfo_report(SpaceInfo *sinfo, bContext *C)
+{
+	BKE_report(CTX_wm_reports(C), RPT_OPERATOR, "je moeder");
+}
+
+
 #else
 
 static EnumPropertyItem dt_uv_items[] = {
@@ -4155,6 +4162,7 @@ static void rna_def_space_info(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	FunctionRNA *func;
 
 	srna = RNA_def_struct(brna, "SpaceInfo", "Space");
 	RNA_def_struct_sdna(srna, "SpaceInfo");
@@ -4185,6 +4193,10 @@ static void rna_def_space_info(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_ERR);
 	RNA_def_property_ui_text(prop, "Show Error", "Display error text");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
+
+	func = RNA_def_function(srna, "report", "rna_SpaceInfo_report");
+	RNA_def_function_ui_description(func, "Test reporting");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 }
 
 static void rna_def_space_userpref(BlenderRNA *brna)
