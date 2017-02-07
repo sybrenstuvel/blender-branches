@@ -66,6 +66,8 @@ AbcPointsWriter::AbcPointsWriter(Scene *scene,
 	                             ParticleSystem *psys)
     : AbcObjectWriter(scene, ob, time_sampling, settings, parent)
 {
+	std::cerr << "   AbcPointsWriter:: creating for " << ob->id.name << ", particle system " << psys->part->id.name  << "\n";
+
 	m_psys = psys;
 
 	OPoints points(parent->alembicXform(), psys->name, m_time_sampling);
