@@ -111,6 +111,12 @@ class VIEW3D_PT_tools_object(View3DPanel, Panel):
                 row.operator("object.data_transfer", text="Data")
                 row.operator("object.datalayout_transfer", text="Data Layout")
 
+        col = layout.column(align=True)
+        col.label(text="Alembic:")
+        row = col.row(align=True)
+        row.operator("wm.alembic_export", text="Export")
+        row.operator("wm.alembic_import", text="Import")
+
 
 class VIEW3D_PT_tools_add_object(View3DPanel, Panel):
     bl_category = "Create"
