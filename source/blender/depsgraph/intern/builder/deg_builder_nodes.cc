@@ -1157,6 +1157,7 @@ void DepsgraphNodeBuilder::build_gpencil(bGPdata *gpd)
 void DepsgraphNodeBuilder::build_cachefile(CacheFile *cache_file)
 {
 	ID *cache_file_id = &cache_file->id;
+	printf("DepsgraphNodeBuilder::build_cachefile(%s)\n", cache_file_id->name);
 
 	add_component_node(cache_file_id, DEPSNODE_TYPE_CACHE);
 	add_operation_node(cache_file_id, DEPSNODE_TYPE_CACHE,
