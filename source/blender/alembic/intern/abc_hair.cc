@@ -57,6 +57,8 @@ AbcHairWriter::AbcHairWriter(Scene *scene,
                              ParticleSystem *psys)
     : AbcObjectWriter(scene, ob, time_sampling, settings, parent)
 {
+	std::cerr << "   AbcHairWriter:: creating for " << ob->id.name << ", particle system " << psys->part->id.name  << "\n";
+
 	m_psys = psys;
 
 	OCurves curves(parent->alembicXform(), psys->name, m_time_sampling);

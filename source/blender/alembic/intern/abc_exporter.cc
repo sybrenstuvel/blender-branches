@@ -126,14 +126,17 @@ static bool object_is_shape(Object *ob)
 static bool export_object(const ExportSettings * const settings, const Base * const ob_base)
 {
 	if (settings->selected_only && !object_selected(ob_base)) {
+		std::cerr << "export_object(" << ob_base->object->id.name << "): not exporting because of selected_only\n";
 		return false;
 	}
 	// FIXME Sybren: handle these cleanly (maybe just remove code), now using active scene layer instead.
 	if (settings->visible_layers_only && (ob_base->flag & BASE_VISIBLED) == 0) {
+		std::cerr << "export_object(" << ob_base->object->id.name << "): not exporting because of visible_layers_only\n";
 		return false;
 	}
 
 	//	if (settings->renderable_only && (ob->restrictflag & OB_RESTRICT_RENDER)) {
+	//	std::cerr << "export_object(" << ob_base->object->id.name << "): not exporting because of renderable_only\n";
 	//		return false;
 	//	}
 
@@ -342,6 +345,8 @@ void AbcExporter::operator()(Main *bmain, float &progress, bool &was_canceled)
 void AbcExporter::createTransformWritersHierarchy(EvaluationContext *eval_ctx)
 {
 	for(Base *base = static_cast<Base *>(m_settings.sl->object_bases.first); base; base = base->next) {
+	std::cerr << "AbcExporter::createTransformWritersHierarchy() called\n";
+
 		Object *ob = base->object;
 
 		if (export_object(&m_settings, base)) {
@@ -351,6 +356,7 @@ void AbcExporter::createTransformWritersHierarchy(EvaluationContext *eval_ctx)
 				case OB_MBALL:
 				case OB_SPEAKER:
 					/* We do not export transforms for objects of these classes. */
+					std::cerr << "AbcExporter::createTransformWritersHierarchy: not exporting transform for " << ob->id.name << " due to object type.\n";
 					break;
 
 				default:
@@ -375,9 +381,13 @@ void AbcExporter::createTransformWritersFlat()
 void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Base *ob_base, Object *parent, Object *dupliObParent)
 {
 	Object *ob = ob_base->object;
+	std::cerr << "AbcExporter::exploreTransform(" << ob->id.name << ")\n";
 
 	if (export_object(&m_settings, ob_base) && object_is_shape(ob)) {
 		createTransformWriter(ob, parent, dupliObParent);
+	}
+	else {
+		std::cerr << "  - skipping xform writer for object " << ob->id.name << "\n";
 	}
 
 	ListBase *lb = object_duplilist(eval_ctx, m_scene, ob);
@@ -395,6 +405,7 @@ void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Base *ob_base, O
 				dupli_parent = (dupli_ob->parent) ? dupli_ob->parent : ob;
 
 				fake_base.object = dupli_ob;
+				std::cerr << "  - exploring dupligroup link " << dupli_ob->id.name << "\n";
 				exploreTransform(eval_ctx, &fake_base, dupli_parent, ob);
 			}
 		}
@@ -406,6 +417,8 @@ void AbcExporter::exploreTransform(EvaluationContext *eval_ctx, Base *ob_base, O
 void AbcExporter::createTransformWriter(Object *ob, Object *parent, Object *dupliObParent)
 {
 	const std::string name = get_object_dag_path_name(ob, dupliObParent);
+
+	std::cerr << "AbcExporter::createTransformWriter(" << ob->id.name << ")" << std::endl;
 
 	/* An object should not be its own parent, or we'll get infinite loops. */
 	BLI_assert(ob != parent);
@@ -424,6 +437,8 @@ void AbcExporter::createTransformWriter(Object *ob, Object *parent, Object *dupl
 		parent_xform = getXForm(parentname);
 
 		if (!parent_xform) {
+			std::cerr << "  - AbcExporter::createTransformWriter(" << ob->id.name << "): parent_xform doesn't exist yet." << std::endl;
+			std::cerr << "  - AbcExporter::createTransformWriter(" << ob->id.name << "):   -> creating for parent=" << parent->id.name << std::endl;
 			if (parent->parent) {
 				createTransformWriter(parent, parent->parent, dupliObParent);
 			}
@@ -462,6 +477,8 @@ void AbcExporter::createShapeWriters(EvaluationContext *eval_ctx)
 void AbcExporter::exploreObject(EvaluationContext *eval_ctx, Base *ob_base, Object *dupliObParent)
 {
 	Object *ob = ob_base->object;
+	std::cerr << "AbcExporter::exploreObject(" << ob->id.name << ")\n";
+
 	ListBase *lb = object_duplilist(eval_ctx, m_scene, ob);
 	
 	createShapeWriter(ob_base, dupliObParent);
@@ -486,10 +503,12 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 	Object *ob = ob_base->object;
 
 	if (!object_is_shape(ob)) {
+		std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): skipping because not a shape.\n";
 		return;
 	}
 
 	if (!export_object(&m_settings, ob_base)) {
+		std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): skipping.\n";
 		return;
 	}
 
@@ -517,6 +536,7 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 		}
 
 		if (psys->part->type == PART_HAIR) {
+			std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): forcing m_settings.export_child_hairs=true.\n";
 			m_settings.export_child_hairs = true;
 			m_shapes.push_back(new AbcHairWriter(m_scene, ob, xform, m_shape_sampling_index, m_settings, psys));
 		}
@@ -531,6 +551,7 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 			Mesh *me = static_cast<Mesh *>(ob->data);
 
 			if (!me || me->totvert == 0) {
+				std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): skipping due to !me || me->totvert == 0.\n";
 				return;
 			}
 
@@ -542,6 +563,7 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 			Curve *cu = static_cast<Curve *>(ob->data);
 
 			if (!cu) {
+				std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): skipping due to !cu.\n";
 				return;
 			}
 
@@ -553,6 +575,7 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 			Curve *cu = static_cast<Curve *>(ob->data);
 
 			if (!cu) {
+				std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): skipping due to !cu.\n";
 				return;
 			}
 
@@ -565,6 +588,8 @@ void AbcExporter::createShapeWriter(Base *ob_base, Object *dupliObParent)
 
 			if (cam->type == CAM_PERSP) {
 				m_shapes.push_back(new AbcCameraWriter(m_scene, ob, xform, m_shape_sampling_index, m_settings));
+			} else {
+				std::cerr << "   AbcExporter::createShapeWriter(" << ob->id.name << "): skipping due to camera type " << cam->type << "\n";
 			}
 
 			break;
