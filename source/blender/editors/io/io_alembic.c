@@ -307,7 +307,7 @@ void WM_OT_alembic_export(wmOperatorType *ot)
 	                "Renderable Objects Only",
 	                "Export only objects marked renderable in the outliner");
 
-	RNA_def_boolean(ot->srna, "visible_layers_only", 0,
+	RNA_def_boolean(ot->srna, "visible_layers_only", 1,
 	                "Visible Layers Only", "Export only objects in visible layers");
 
 	RNA_def_boolean(ot->srna, "flatten", 0,
