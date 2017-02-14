@@ -97,10 +97,13 @@ void AbcTransformWriter::do_write()
 
 	if (!m_object->parent) {
 		/* Only apply scaling to root objects, parenting will propagate it. */
+		/* TODO Sybren: when we're exporting as "flat", i.e. non-hierarchial,
+		 * we should apply the scale even when the object has a parent
+		 * Blender Object. */
 		float scale_mat[4][4];
 		scale_m4_fl(scale_mat, m_settings.global_scale);
 		mul_m4_m4m4(mat, mat, scale_mat);
-		mul_v3_fl(mat[3], m_settings.global_scale);
+		mul_v3_fl(mat[3], m_settings.global_scale); // TODO Sybren: figure out why scale is applied twice.
 	}
 
 	m_matrix = convert_matrix(mat);
@@ -132,6 +135,10 @@ bool AbcTransformWriter::hasAnimation(Object */*ob*/) const
 AbcEmptyReader::AbcEmptyReader(const Alembic::Abc::IObject &object, ImportSettings &settings)
     : AbcObjectReader(object, settings)
 {
+	/* Empties have no data. It makes the import of Alembic files easier to
+	 * understand when we name the empty after its name in Alembic. */
+	m_object_name = object.getName();
+
 	Alembic::AbcGeom::IXform xform(object, Alembic::AbcGeom::kWrapExisting);
 	m_schema = xform.getSchema();
 

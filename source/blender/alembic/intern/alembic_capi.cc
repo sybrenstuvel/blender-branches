@@ -152,7 +152,7 @@ static void gather_objects_paths(const IObject &object, ListBase *object_paths)
 					}
 #if 0
 					else {
-						std::cerr << "Skipping " << child.getFullName() << '\n';
+						std::cerr << "gather_objects_paths(" << object.getFullName() << "): Skipping " << child.getFullName() << '\n';
 					}
 #endif
 				}
@@ -382,107 +382,142 @@ static void visit_object(const IObject &object,
                          ImportSettings &settings)
 {
 	if (!object.valid()) {
+		std::cerr << "  - " << object.getFullName() << ": object is invalid, skipping it and all its children.\n";
 		return;
 	}
 
-	for (int i = 0; i < object.getNumChildren(); ++i) {
-		IObject child = object.getChild(i);
+	AbcObjectReader *reader = NULL;
 
-		if (!child.valid()) {
-			continue;
-		}
+	const MetaData &md = object.getMetaData();
+	const std::string schema_obj_title = md.get("schemaObjTitle");
 
-		AbcObjectReader *reader = NULL;
+	std::cerr << "  - " << object.getFullName() << "(" << schema_obj_title << "): ";
 
-		const MetaData &md = child.getMetaData();
+	if (!object.getParent()) {
+		// The root itself is not an object we should import.
+	}
+	else if (IXform::matches(md)) {
+		bool create_empty;
+		size_t num_children = object.getNumChildren();
 
-		if (IXform::matches(md)) {
-			bool create_xform = false;
+		/* An xform can either be a Blender Object (if it contains a mesh, for exapmle),
+		 * but it can also be an Empty. Its correct translation to Blender's data model
+		 * depends on its children. */
 
-			/* Check whether or not this object is a Maya locator, which is
-			 * similar to empties used as parent object in Blender. */
-			if (has_property(child.getProperties(), "locator")) {
-				create_xform = true;
-			}
-			else {
-				/* Avoid creating an empty object if the child of this transform
-				 * is not a transform (that is an empty). */
-				if (child.getNumChildren() == 1) {
-					if (IXform::matches(child.getChild(0).getMetaData())) {
-						create_xform = true;
-					}
-#if 0
-					else {
-						std::cerr << "Skipping " << child.getFullName() << '\n';
-					}
-#endif
-				}
-				else {
-					create_xform = true;
-				}
-			}
-
-			if (create_xform) {
-				reader = new AbcEmptyReader(child, settings);
-			}
+		/* Check whether or not this object is a Maya locator, which is
+		 * similar to empties used as parent object in Blender. */
+		if (has_property(object.getProperties(), "locator")) {
+			std::cerr << "Maya locator; ";
+			create_empty = true;
 		}
-		else if (IPolyMesh::matches(md)) {
-			reader = new AbcMeshReader(child, settings);
+		else if (num_children != 1) {
+			std::cerr << num_children << " children; ";
+			create_empty = true;
 		}
-		else if (ISubD::matches(md)) {
-			reader = new AbcSubDReader(child, settings);
-		}
-		else if (INuPatch::matches(md)) {
-#ifdef USE_NURBS
-			/* TODO(kevin): importing cyclic NURBS from other software crashes
-			 * at the moment. This is due to the fact that NURBS in other
-			 * software have duplicated points which causes buffer overflows in
-			 * Blender. Need to figure out exactly how these points are
-			 * duplicated, in all cases (cyclic U, cyclic V, and cyclic UV).
-			 * Until this is fixed, disabling NURBS reading. */
-			reader = new AbcNurbsReader(child, settings);
-#endif
-		}
-		else if (ICamera::matches(md)) {
-			reader = new AbcCameraReader(child, settings);
-		}
-		else if (IPoints::matches(md)) {
-			reader = new AbcPointsReader(child, settings);
-		}
-		else if (IMaterial::matches(md)) {
-			/* Pass for now. */
-		}
-		else if (ILight::matches(md)) {
-			/* Pass for now. */
-		}
-		else if (IFaceSet::matches(md)) {
-			/* Pass, those are handled in the mesh reader. */
-		}
-		else if (ICurves::matches(md)) {
-			reader = new AbcCurveReader(child, settings);
+		else if (IXform::matches(object.getChild(0).getMetaData())) {
+			std::cerr << "one child, which is Xform; ";
+			/* Avoid creating an empty object if the object of this transform
+			 * is not a transform (that is an empty). */
+			create_empty = true;
 		}
 		else {
-			assert(false);
+			std::cerr << "not created an AbcEmptyReader because it has a single '"
+			          << object.getChild(0).getMetaData().get("schemaObjTitle")
+			          << "' child.";
+			create_empty = false;
 		}
 
-		if (reader) {
-			readers.push_back(reader);
-			reader->incref();
-
-			AlembicObjectPath *abc_path = static_cast<AlembicObjectPath *>(
-			                                  MEM_callocN(sizeof(AlembicObjectPath), "AlembicObjectPath"));
-
-			BLI_strncpy(abc_path->path, child.getFullName().c_str(), PATH_MAX);
-
-			BLI_addtail(&settings.cache_file->object_paths, abc_path);
-
-			/* Cast to `void *` explicitly to avoid compiler errors because it
-			 * is a `const char *` which the compiler cast to `const void *`
-			 * instead of the expected `void *`. */
-			BLI_ghash_insert(parent_map, (void *)child.getFullName().c_str(), reader);
+		if (create_empty) {
+			reader = new AbcEmptyReader(object, settings);
+			std::cerr << "created an AbcEmptyReader "
+			          << reader->object_name()
+			          << " with data " << reader->data_name();
 		}
+	}
+	else if (IPolyMesh::matches(md)) {
+		reader = new AbcMeshReader(object, settings);
+		std::cerr << "created an AbcMeshReader "
+		          << reader->object_name()
+		          << " with data " << reader->data_name();
+	}
+	else if (ISubD::matches(md)) {
+		reader = new AbcSubDReader(object, settings);
+		std::cerr << "created an AbcSubDReader "
+		          << reader->object_name()
+		          << " with data " << reader->data_name();
+	}
+	else if (INuPatch::matches(md)) {
+#ifdef USE_NURBS
+		/* TODO(kevin): importing cyclic NURBS from other software crashes
+		 * at the moment. This is due to the fact that NURBS in other
+		 * software have duplicated points which causes buffer overflows in
+		 * Blender. Need to figure out exactly how these points are
+		 * duplicated, in all cases (cyclic U, cyclic V, and cyclic UV).
+		 * Until this is fixed, disabling NURBS reading. */
+		reader = new AbcNurbsReader(object, settings);
+#endif
+	}
+	else if (ICamera::matches(md)) {
+		reader = new AbcCameraReader(object, settings);
+		std::cerr << "created an AbcCameraReader "
+		          << reader->object_name()
+		          << " with data " << reader->data_name();
+	}
+	else if (IPoints::matches(md)) {
+		reader = new AbcPointsReader(object, settings);
+		std::cerr << "created an AbcPointsReader "
+		          << reader->object_name()
+		          << " with data " << reader->data_name();
+	}
+	else if (IMaterial::matches(md)) {
+		/* Pass for now. */
+		std::cerr << "skipping IMaterial objects";
+	}
+	else if (ILight::matches(md)) {
+		/* Pass for now. */
+		std::cerr << "skipping ILight objects";
+	}
+	else if (IFaceSet::matches(md)) {
+		/* Pass, those are handled in the mesh reader. */
+		std::cerr << "skipping IFaceSet objects";
+	}
+	else if (ICurves::matches(md)) {
+		reader = new AbcCurveReader(object, settings);
+		std::cerr << "created an AbcCurveReader "
+		          << reader->object_name()
+		          << " with data " << reader->data_name();
+	}
+	else {
+		std::cerr << "object is of unsupported schema type "
+		          << "'" << object.getMetaData().get("schemaObjTitle") << "'"
+		          << std::endl;
 
-		visit_object(child, readers, parent_map, settings);
+		BLI_assert(false);
+	}
+
+	std::cerr << std::endl;
+
+	if (reader) {
+		readers.push_back(reader);
+		reader->incref();
+
+		AlembicObjectPath *abc_path = static_cast<AlembicObjectPath *>(
+		                                  MEM_callocN(sizeof(AlembicObjectPath), "AlembicObjectPath"));
+
+		BLI_strncpy(abc_path->path, object.getFullName().c_str(), PATH_MAX);
+
+		BLI_addtail(&settings.cache_file->object_paths, abc_path);
+
+		/* Cast to `void *` explicitly to avoid compiler errors because it
+		 * is a `const char *` which the compiler cast to `const void *`
+		 * instead of the expected `void *`. */
+		BLI_ghash_insert(parent_map, (void *)object.getFullName().c_str(), reader);
+	}
+
+
+	// After visiting the object itself, visit all its children.
+	for (int i = 0; i < object.getNumChildren(); ++i) {
+		visit_object(object.getChild(i), readers, parent_map, settings);
 	}
 }
 
@@ -576,7 +611,7 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 	data->parent_map = BLI_ghash_str_new("alembic parent ghash");
 
 	/* Parse Alembic Archive. */
-
+	std::cerr << "Parsing Alembic archive\n";
 	visit_object(archive->getTop(), data->readers, data->parent_map, data->settings);
 
 	if (G.is_break) {
@@ -596,8 +631,18 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 	chrono_t max_time = std::numeric_limits<chrono_t>::min();
 
 	std::vector<AbcObjectReader *>::iterator iter;
+	printf("Alembic Import: iterating readers\n");
 	for (iter = data->readers.begin(); iter != data->readers.end(); ++iter) {
 		AbcObjectReader *reader = *iter;
+
+		const IObject & iob = reader->iobject();
+
+		std::cerr << "  - "
+		          << reader->name()
+		          << "(" << iob.getMetaData().get("schemaObjTitle") << ")"
+		          << " -> " << reader->object_name()
+		          << " with data " << reader->data_name()
+		          << "\n";
 
 		if (reader->valid()) {
 			reader->readObjectData(data->bmain, 0.0f);
@@ -605,6 +650,9 @@ static void import_startjob(void *user_data, short *stop, short *do_update, floa
 
 			min_time = std::min(min_time, reader->minTime());
 			max_time = std::max(max_time, reader->maxTime());
+		}
+		else {
+			std::cerr << "Object " << reader->name() << " in Alembic file " << data->filename << " is invalid.\n";
 		}
 
 		*data->progress = 0.1f + 0.6f * (++i / size);

@@ -207,6 +207,7 @@ Imath::M44d get_matrix(const IXformSchema &schema, const float time)
 	schema.get(s0, Alembic::AbcGeom::ISampleSelector(i0));
 
 	if (i0 != i1) {
+		printf(__FILE__ " WARNING, interpolating matrices\n");
 		schema.get(s1, Alembic::AbcGeom::ISampleSelector(i1));
 		return blend_matrices(s0.getMatrix(), s1.getMatrix(), weight);
 	}
@@ -219,7 +220,7 @@ void AbcObjectReader::readObjectMatrix(const float time)
 	bool is_constant = false;
 
 	this->read_matrix(m_object->obmat, time, m_settings->scale, is_constant);
-	invert_m4_m4(m_object->imat, m_object->obmat);
+//	invert_m4_m4(m_object->imat, m_object->obmat);
 
 	BKE_object_apply_mat4(m_object, m_object->obmat, false,  false);
 
@@ -239,35 +240,22 @@ void AbcObjectReader::readObjectMatrix(const float time)
 void AbcObjectReader::read_matrix(float mat[4][4], const float time, const float scale, bool &is_constant)
 {
 	IXform ixform;
-	bool has_alembic_parent = false;
+	IObject ixform_parent;
 
 	/* Check that we have an empty object (locator, bone head/tail...).  */
 	if (IXform::matches(m_iobject.getMetaData())) {
 		ixform = IXform(m_iobject, Alembic::AbcGeom::kWrapExisting);
-
-		/* See comment below. */
-		has_alembic_parent = m_iobject.getParent().getParent().valid();
+		ixform_parent = m_iobject.getParent();
 	}
 	/* Check that we have an object with actual data. */
 	else if (IXform::matches(m_iobject.getParent().getMetaData())) {
 		ixform = IXform(m_iobject.getParent(), Alembic::AbcGeom::kWrapExisting);
-
-		/* This is a bit hackish, but we need to make sure that extra
-		 * transformations added to the matrix (rotation/scale) are only applied
-		 * to root objects. The way objects and their hierarchy are created will
-		 * need to be revisited at some point but for now this seems to do the
-		 * trick.
-		 *
-		 * Explanation of the trick:
-		 * The first getParent() will return this object's transformation matrix.
-		 * The second getParent() will get the parent of the transform, but this
-		 * might be the archive root ('/') which is valid, so we go passed it to
-		 * make sure that there is no parent.
-		 */
-		has_alembic_parent = m_iobject.getParent().getParent().getParent().valid();
+		ixform_parent = m_iobject.getParent().getParent();
 	}
 	/* Should not happen. */
 	else {
+		std::cerr << "AbcObjectReader::read_matrix: unable to find IXform for Alembic object '" << m_iobject.getFullName() << "'\n";
+		BLI_assert(false);
 		return;
 	}
 
@@ -275,6 +263,16 @@ void AbcObjectReader::read_matrix(float mat[4][4], const float time, const float
 
 	if (!schema.valid()) {
 		return;
+	}
+
+	bool has_alembic_parent;
+	if (!ixform_parent.getParent()) {
+		// The archive top object certainly is not a transform itself, so handle it as "no parent".
+		has_alembic_parent = false;
+	}
+	else {
+	// Sybren: getInhertisXforms() should IMO be a const function.
+		has_alembic_parent = ixform_parent && const_cast<IXformSchema &>(schema).getInheritsXforms();
 	}
 
 	const Imath::M44d matrix = get_matrix(schema, time);
