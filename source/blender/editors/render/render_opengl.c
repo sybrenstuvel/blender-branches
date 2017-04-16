@@ -840,6 +840,7 @@ static bool screen_opengl_render_anim_initialize(bContext *C, wmOperator *op)
 	if (BKE_imtype_is_movie(scene->r.im_format.imtype)) {
 		size_t width, height;
 		int i;
+		struct StampData *static_stamp_data;
 
 		BKE_scene_multiview_videos_dimensions_get(&scene->r, oglrender->sizex, oglrender->sizey, &width, &height);
 		oglrender->mh = BKE_movie_handle_get(scene->r.im_format.imtype);
@@ -851,18 +852,23 @@ static bool screen_opengl_render_anim_initialize(bContext *C, wmOperator *op)
 		}
 
 		oglrender->movie_ctx_arr = MEM_mallocN(sizeof(void *) * oglrender->totvideos, "Movies");
+		static_stamp_data = BKE_static_stamp_info(scene);
 
 		for (i = 0; i < oglrender->totvideos; i++) {
 			const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, i);
 
 			oglrender->movie_ctx_arr[i] = oglrender->mh->context_create();
 			if (!oglrender->mh->start_movie(oglrender->movie_ctx_arr[i], scene, &scene->r, oglrender->sizex,
-			                                oglrender->sizey, oglrender->reports, PRVRANGEON != 0, suffix))
+			                                oglrender->sizey, oglrender->reports, PRVRANGEON != 0, suffix,
+			                                static_stamp_data))
 			{
 				screen_opengl_render_end(C, oglrender);
+				MEM_freeN(static_stamp_data);
 				return false;
 			}
 		}
+
+		MEM_freeN(static_stamp_data);
 	}
 
 	oglrender->cfrao = scene->r.cfra;

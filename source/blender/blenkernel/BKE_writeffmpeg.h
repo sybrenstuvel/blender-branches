@@ -68,7 +68,8 @@ struct RenderData;
 struct ReportList;
 struct Scene;
 
-int BKE_ffmpeg_start(void *context_v, struct Scene *scene, struct RenderData *rd, int rectx, int recty, struct ReportList *reports, bool preview, const char *suffix);
+int BKE_ffmpeg_start(void *context_v, struct Scene *scene, struct RenderData *rd, int rectx, int recty,
+                     struct ReportList *reports, bool preview, const char *suffix, struct StampData *stamp_data);
 void BKE_ffmpeg_end(void *context_v);
 int BKE_ffmpeg_append(void *context_v, struct RenderData *rd, int start_frame, int frame, int *pixels,
                       int rectx, int recty, const char *suffix, struct ReportList *reports);

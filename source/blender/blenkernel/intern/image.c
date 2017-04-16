@@ -1601,7 +1601,8 @@ typedef struct StampData {
 } StampData;
 #undef STAMP_NAME_SIZE
 
-static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int do_prefix)
+static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int do_prefix,
+                      bool static_only)
 {
 	char text[256];
 	struct tm *tl;
@@ -1632,7 +1633,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		stamp_data->date[0] = '\0';
 	}
 
-	if (scene->r.stamp & R_STAMP_MARKER) {
+	if (!static_only && scene->r.stamp & R_STAMP_MARKER) {
 		const char *name = BKE_scene_find_last_marker_name(scene, CFRA);
 
 		if (name) BLI_strncpy(text, name, sizeof(text));
@@ -1644,7 +1645,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		stamp_data->marker[0] = '\0';
 	}
 
-	if (scene->r.stamp & R_STAMP_TIME) {
+	if (!static_only && scene->r.stamp & R_STAMP_TIME) {
 		const short timecode_style = USER_TIMECODE_SMPTE_FULL;
 		BLI_timecode_string_from_time(text, sizeof(text), 0, FRA2TIME(scene->r.cfra), FPS, timecode_style);
 		BLI_snprintf(stamp_data->time, sizeof(stamp_data->time), do_prefix ? "Timecode %s" : "%s", text);
@@ -1653,7 +1654,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		stamp_data->time[0] = '\0';
 	}
 
-	if (scene->r.stamp & R_STAMP_FRAME) {
+	if (!static_only && scene->r.stamp & R_STAMP_FRAME) {
 		char fmtstr[32];
 		int digits = 1;
 
@@ -1667,14 +1668,14 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		stamp_data->frame[0] = '\0';
 	}
 
-	if (scene->r.stamp & R_STAMP_CAMERA) {
+	if (!static_only && scene->r.stamp & R_STAMP_CAMERA) {
 		BLI_snprintf(stamp_data->camera, sizeof(stamp_data->camera), do_prefix ? "Camera %s" : "%s", camera ? camera->id.name + 2 : "<none>");
 	}
 	else {
 		stamp_data->camera[0] = '\0';
 	}
 
-	if (scene->r.stamp & R_STAMP_CAMERALENS) {
+	if (!static_only && scene->r.stamp & R_STAMP_CAMERALENS) {
 		if (camera && camera->type == OB_CAMERA) {
 			BLI_snprintf(text, sizeof(text), "%.2f", ((Camera *)camera->data)->lens);
 		}
@@ -1695,7 +1696,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		stamp_data->scene[0] = '\0';
 	}
 
-	if (scene->r.stamp & R_STAMP_SEQSTRIP) {
+	if (!static_only && scene->r.stamp & R_STAMP_SEQSTRIP) {
 		Sequence *seq = BKE_sequencer_foreground_frame_get(scene, scene->r.cfra);
 
 		if (seq) BLI_strncpy(text, seq->name + 2, sizeof(text));
@@ -1711,7 +1712,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 		Render *re = RE_GetRender(scene->id.name);
 		RenderStats *stats = re ? RE_GetStats(re) : NULL;
 
-		if (stats && (scene->r.stamp & R_STAMP_RENDERTIME)) {
+		if (!static_only && stats && (scene->r.stamp & R_STAMP_RENDERTIME)) {
 			BLI_timecode_string_from_time_simple(text, sizeof(text), stats->lastframetime);
 
 			BLI_snprintf(stamp_data->rendertime, sizeof(stamp_data->rendertime), do_prefix ? "RenderTime %s" : "%s", text);
@@ -1720,7 +1721,7 @@ static void stampdata(Scene *scene, Object *camera, StampData *stamp_data, int d
 			stamp_data->rendertime[0] = '\0';
 		}
 
-		if (stats && (scene->r.stamp & R_STAMP_MEMORY)) {
+		if (!static_only && stats && (scene->r.stamp & R_STAMP_MEMORY)) {
 			BLI_snprintf(stamp_data->memory, sizeof(stamp_data->memory), do_prefix ? "Peak Memory %.2fM" : "%.2fM", stats->mem_peak);
 		}
 		else {
@@ -1847,7 +1848,7 @@ void BKE_image_stamp_buf(
 	display = IMB_colormanagement_display_get_named(display_device);
 
 	if (stamp_data_template == NULL) {
-		stampdata(scene, camera, &stamp_data, (scene->r.stamp & R_STAMP_HIDE_LABELS) == 0);
+		stampdata(scene, camera, &stamp_data, (scene->r.stamp & R_STAMP_HIDE_LABELS) == 0, false);
 	}
 	else {
 		stampdata_from_template(&stamp_data, scene, stamp_data_template);
@@ -2068,11 +2069,24 @@ void BKE_render_result_stamp_info(Scene *scene, Object *camera, struct RenderRes
 	}
 
 	if (!allocate_only)
-		stampdata(scene, camera, stamp_data, 0);
+		stampdata(scene, camera, stamp_data, 0, false);
 
 	if (!rr->stamp_data) {
 		rr->stamp_data = stamp_data;
 	}
+}
+
+struct StampData * BKE_static_stamp_info(Scene *scene)
+{
+	struct StampData *stamp_data;
+
+	if (!(scene && (scene->r.stamp & R_STAMP_ALL)))
+		return NULL;
+
+	stamp_data = MEM_callocN(sizeof(StampData), "BKE_static_stamp_info");
+	stampdata(scene, NULL, stamp_data, 0, true);
+
+	return stamp_data;
 }
 
 void BKE_stamp_info_callback(void *data, struct StampData *stamp_data, StampCallback callback, bool noskip)

@@ -3563,6 +3563,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 		size_t width, height;
 		int i;
 		bool is_error = false;
+		struct StampData *static_stamp_data;
 
 		get_videos_dimensions(re, &rd, &width, &height);
 
@@ -3572,6 +3573,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			return;
 		}
 
+		static_stamp_data = BKE_static_stamp_info(scene);
 		re->movie_ctx_arr = MEM_mallocN(sizeof(void *) * totvideos, "Movies' Context");
 
 		for (i = 0; i < totvideos; i++) {
@@ -3579,11 +3581,14 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 
 			re->movie_ctx_arr[i] = mh->context_create();
 
-			if (!mh->start_movie(re->movie_ctx_arr[i], scene, &re->r, width, height, re->reports, false, suffix)) {
+			if (!mh->start_movie(re->movie_ctx_arr[i], scene, &re->r, width, height, re->reports, false, suffix,
+			                     static_stamp_data)) {
 				is_error = true;
 				break;
 			}
 		}
+
+		MEM_freeN(static_stamp_data);
 
 		if (is_error) {
 			/* report is handled above */

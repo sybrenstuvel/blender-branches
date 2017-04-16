@@ -367,6 +367,9 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 	rd.frs_sec_base = 1.0f;
 	
 	if (BKE_imtype_is_movie(rd.im_format.imtype)) {
+		struct StampData *static_stamp_data;
+		bool start_ok;
+
 		mh = BKE_movie_handle_get(sj->scene->r.im_format.imtype);
 		if (mh == NULL) {
 			printf("Movie format unsupported\n");
@@ -375,7 +378,12 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 		sj->movie_ctx = mh->context_create();
 		sj->movie_handle = mh;
 
-		if (!mh->start_movie(sj->movie_ctx, sj->scene, &rd, sj->dumpsx, sj->dumpsy, &sj->reports, false, "")) {
+		static_stamp_data = BKE_static_stamp_info(sj->scene);
+		start_ok = mh->start_movie(sj->movie_ctx, sj->scene, &rd, sj->dumpsx, sj->dumpsy, &sj->reports, false, "",
+		                           static_stamp_data);
+		MEM_freeN(static_stamp_data);
+
+		if (!start_ok) {
 			printf("screencast job stopped\n");
 			return;
 		}

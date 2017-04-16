@@ -53,6 +53,7 @@
 
 #include "BKE_global.h"
 #include "BKE_idprop.h"
+#include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
@@ -61,6 +62,8 @@
 #include "IMB_imbuf.h"
 
 #include "ffmpeg_compat.h"
+
+struct StampData;
 
 typedef struct FFMpegContext {
 	int ffmpeg_type;
@@ -93,6 +96,9 @@ typedef struct FFMpegContext {
 	double audio_time;
 	bool audio_deinterleave;
 	int audio_sample_size;
+
+	struct Scene *scene; /* the scene being rendered */
+	struct StampData *static_stamp_data;
 
 #ifdef WITH_AUDASPACE
 	AUD_Device *audio_mixdown_device;
@@ -835,7 +841,14 @@ static void ffmpeg_dict_set_float(AVDictionary **dict, const char *key, float va
 	av_dict_set(dict, key, buffer, 0);
 }
 
-static int start_ffmpeg_impl(FFMpegContext *context, struct RenderData *rd, int rectx, int recty, const char *suffix, ReportList *reports)
+static void ffmpeg_add_metadata_callback(void *data, const char *propname, char *propvalue, int len)
+{
+	AVDictionary **metadata = (AVDictionary **)data;
+	av_dict_set(metadata, propname, propvalue, 0);
+}
+
+static int start_ffmpeg_impl(FFMpegContext *context, struct RenderData *rd, int rectx, int recty, const char *suffix,
+                             ReportList *reports)
 {
 	/* Handle to the output file */
 	AVFormatContext *of;
@@ -993,6 +1006,11 @@ static int start_ffmpeg_impl(FFMpegContext *context, struct RenderData *rd, int 
 			goto fail;
 		}
 	}
+
+	if (context->static_stamp_data != NULL) {
+		BKE_stamp_info_callback(&of->metadata, context->static_stamp_data, ffmpeg_add_metadata_callback, false);
+	}
+
 	if (avformat_write_header(of, NULL) < 0) {
 		BKE_report(reports, RPT_ERROR, "Could not initialize streams, probably unsupported codec combination");
 		goto fail;
@@ -1160,13 +1178,15 @@ void BKE_ffmpeg_filepath_get(char *string, RenderData *rd, bool preview, const c
 }
 
 int BKE_ffmpeg_start(void *context_v, struct Scene *scene, RenderData *rd, int rectx, int recty,
-                     ReportList *reports, bool preview, const char *suffix)
+                     ReportList *reports, bool preview, const char *suffix, struct StampData *stamp_data)
 {
 	int success;
 	FFMpegContext *context = context_v;
 
+	context->scene = scene;
 	context->ffmpeg_autosplit_count = 0;
 	context->ffmpeg_preview = preview;
+	context->static_stamp_data = MEM_dupallocN(stamp_data);  /* we have to keep a copy around for the autosplit feature */
 
 	success = start_ffmpeg_impl(context, rd, rectx, recty, suffix, reports);
 #ifdef WITH_AUDASPACE
@@ -1733,6 +1753,7 @@ void *BKE_ffmpeg_context_create(void)
 	context->ffmpeg_autosplit = 0;
 	context->ffmpeg_autosplit_count = 0;
 	context->ffmpeg_preview = false;
+	context->static_stamp_data = NULL;
 
 	return context;
 }
@@ -1741,6 +1762,9 @@ void BKE_ffmpeg_context_free(void *context_v)
 {
 	FFMpegContext *context = context_v;
 	if (context) {
+		if (context->static_stamp_data) {
+			MEM_freeN(context->static_stamp_data);
+		}
 		MEM_freeN(context);
 	}
 }

@@ -41,10 +41,12 @@ extern "C" {
 struct RenderData;	
 struct ReportList;
 struct Scene;
+struct StampData;
 
 typedef struct bMovieHandle {
 	int (*start_movie)(void *context_v, struct Scene *scene, struct RenderData *rd, int rectx, int recty,
-	                   struct ReportList *reports, bool preview, const char *suffix);
+	                   struct ReportList *reports, bool preview, const char *suffix,
+	                   struct StampData *static_stamp_data);
 	int (*append_movie)(void *context_v, struct RenderData *rd, int start_frame, int frame, int *pixels,
 	                    int rectx, int recty, const char *suffix, struct ReportList *reports);
 	void (*end_movie)(void *context_v);

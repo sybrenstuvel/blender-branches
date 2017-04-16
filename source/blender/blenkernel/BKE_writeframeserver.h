@@ -39,10 +39,11 @@ extern "C" {
 struct RenderData;	
 struct ReportList;
 struct Scene;
+struct StampData;
 
 int BKE_frameserver_start(
         void *context_v, struct Scene *scene, struct RenderData *rd, int rectx, int recty,
-        struct ReportList *reports, bool preview, const char *suffix);
+        struct ReportList *reports, bool preview, const char *suffix, struct StampData *stamp_data);
 void BKE_frameserver_end(void *context_v);
 int BKE_frameserver_append(
         void *context_v, struct RenderData *rd, int start_frame, int frame, int *pixels,

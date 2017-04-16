@@ -51,7 +51,8 @@
 /* ********************** general blender movie support ***************************** */
 
 static int start_stub(void *UNUSED(context_v), Scene *UNUSED(scene), RenderData *UNUSED(rd), int UNUSED(rectx), int UNUSED(recty),
-                      ReportList *UNUSED(reports), bool UNUSED(preview), const char *UNUSED(suffix))
+                      ReportList *UNUSED(reports), bool UNUSED(preview), const char *UNUSED(suffix),
+                      struct StampData *UNUSED(stamp_data))
 { return 0; }
 
 static void end_stub(void *UNUSED(context_v))
@@ -71,7 +72,8 @@ static void context_free_stub(void *UNUSED(context_v))
 #  include "AVI_avi.h"
 
 /* callbacks */
-static int start_avi(void *context_v, Scene *scene, RenderData *rd, int rectx, int recty, ReportList *reports, bool preview, const char *suffix);
+static int start_avi(void *context_v, Scene *scene, RenderData *rd, int rectx, int recty, ReportList *reports,
+                     bool preview, const char *suffix, struct StampData *stamp_data);
 static void end_avi(void *context_v);
 static int append_avi(void *context_v, RenderData *rd, int start_frame, int frame, int *pixels,
                       int rectx, int recty, const char *suffix, ReportList *reports);
@@ -193,7 +195,8 @@ static void filepath_avi(char *string, RenderData *rd, bool preview, const char 
 }
 
 static int start_avi(void *context_v, Scene *UNUSED(scene), RenderData *rd, int rectx, int recty,
-                     ReportList *reports, bool preview, const char *suffix)
+                     ReportList *reports, bool preview, const char *suffix,
+                     struct StampData *UNUSED(stamp_data))
 {
 	int x, y;
 	char name[256];
